@@ -1,0 +1,47 @@
+{
+    "name": "@deijose/nix-js-compiler",
+    "version": "1.0.0",
+    "description": "Build-time compiler for Nix.js html`` templates — pre-computes descriptors, pathMaps, and generates direct node access code.",
+    "type": "module",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        }
+    },
+    "files": [
+        "dist",
+        "src",
+        "README.md"
+    ],
+    "scripts": {
+        "build": "tsc",
+        "test": "vitest run",
+        "prepublishOnly": "npm run build"
+    },
+    "keywords": [
+        "nix-js",
+        "compiler",
+        "template",
+        "dom",
+        "reactive",
+        "signals",
+        "vite"
+    ],
+    "author": "DeijoseDevelop",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/DeijoseDevelop/nix-js-compiler.git"
+    },
+    "homepage": "https://github.com/DeijoseDevelop/nix-js-compiler#readme",
+    "bugs": {
+        "url": "https://github.com/DeijoseDevelop/nix-js-compiler/issues"
+    },
+    "devDependencies": {
+        "typescript": "^7.0.0",
+        "vitest": "^4.1.11"
+    }
+}
