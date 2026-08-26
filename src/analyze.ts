@@ -40,11 +40,23 @@ export function detectContext(prevString: string): BindingContext {
         return { type: "node" };
     }
 
-    const hadOpenQuote =
-        tagContent.endsWith('"') ||
-        tagContent.endsWith("'") ||
-        tagContent[tagContent.length - 1] === '"' ||
-        tagContent[tagContent.length - 1] === "'";
+    // Detect whether the attribute value has an open quote. The previous
+    // implementation only checked if tagContent ended with a quote, which
+    // fails for partial attribute interpolations like:
+    //   class="feature-card reveal${...}"
+    // where tagContent is 'div class="feature-card reveal' — the last char
+    // is 'l', not '"', but there IS an open quote after '='. We need to look
+    // for an opening quote between '=' and the end that has no matching close.
+    const afterEq = tagContent.slice(eqIdx + 1);
+    const quoteChar = afterEq[0];
+    const hasOpenQuote =
+        (quoteChar === '"' || quoteChar === "'") &&
+        // The opening quote is "open" (unmatched) if it's the only quote in
+        // afterEq, or if the last quote char differs from it (odd count).
+        // For partial interpolation, afterEq is like '"feature-card reveal'
+        // — starts with " and has no closing ".
+        afterEq.lastIndexOf(quoteChar) === 0;
+    const hadOpenQuote = hasOpenQuote;
 
     let startIdx = eqIdx - 1;
     while (startIdx >= 0 && /\S/.test(tagContent[startIdx])) {
@@ -98,13 +110,29 @@ export function buildHTML(
                 const full = ctx.modifiers.length
                     ? `${ctx.eventName}.${ctx.modifiers.join(".")}`
                     : ctx.eventName;
-                const cut = `@${full}=`.length + (ctx.hadOpenQuote ? 1 : 0);
-                result += s.slice(0, -cut) + ` data-nix-e-${i}="${ctx.eventName}"`;
+                const attrPrefix = `@${full}=`;
+                // Find the attribute assignment from the end of the string.
+                // Using lastIndexOf instead of slice(0, -cut) handles partial
+                // attribute interpolations where static content appears
+                // between the opening quote and the interpolation hole:
+                //   class="feature-card reveal${expr}"
+                // The old slice(0, -cut) only worked when the string ended
+                // right after the opening quote (post-Phase-1 clean strings).
+                const eqPos = s.lastIndexOf(attrPrefix);
+                if (eqPos !== -1) {
+                    result += s.slice(0, eqPos) + ` data-nix-e-${i}="${ctx.eventName}"`;
+                } else {
+                    result += s + ` data-nix-e-${i}="${ctx.eventName}"`;
+                }
                 if (ctx.hadOpenQuote) skipLeading[i + 1] = 1;
             } else {
-                const cut =
-                    `${ctx.attrName}=`.length + (ctx.hadOpenQuote ? 1 : 0);
-                result += s.slice(0, -cut) + ` data-nix-a-${i}="${ctx.attrName}"`;
+                const attrPrefix = `${ctx.attrName}=`;
+                const eqPos = s.lastIndexOf(attrPrefix);
+                if (eqPos !== -1) {
+                    result += s.slice(0, eqPos) + ` data-nix-a-${i}="${ctx.attrName}"`;
+                } else {
+                    result += s + ` data-nix-a-${i}="${ctx.attrName}"`;
+                }
                 if (ctx.hadOpenQuote) skipLeading[i + 1] = 1;
             }
         } else {

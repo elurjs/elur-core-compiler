@@ -177,3 +177,68 @@ describe("compileTemplate", () => {
         expect(generated.runtimeImports).toEqual(["__nixCompiledTemplate"]);
     });
 });
+
+describe("hadOpenQuote detection (partial attribute interpolation bug)", () => {
+    // Bug: detectContext only checked if tagContent ended with a quote.
+    // For partial interpolation like class="prefix${expr}", tagContent is
+    // 'div class="prefix' — ends with 'x', not '"', but there IS an open
+    // quote after '='. This produced broken HTML:
+    //   <div class="prefix data-nix-a-0="class"">
+    // instead of:
+    //   <div data-nix-a-0="class">
+
+    it("detects hadOpenQuote when string ends right after opening quote", () => {
+        // class="${expr}" — tagContent = 'div class="'
+        const { contexts } = analyzeTemplate(['<div class="', '"></div>']);
+        expect(contexts[0]).toMatchObject({ type: "attr", attrName: "class", hadOpenQuote: true });
+    });
+
+    it("detects hadOpenQuote with static content between quote and interpolation", () => {
+        // class="feature-card reveal${expr}" — the bug pattern
+        // tagContent = 'div class="feature-card reveal'
+        const { contexts } = analyzeTemplate(['<div class="feature-card reveal', '">x</div>']);
+        expect(contexts[0]).toMatchObject({ type: "attr", attrName: "class", hadOpenQuote: true });
+    });
+
+    it("detects hadOpenQuote with single quotes", () => {
+        const { contexts } = analyzeTemplate(["<div class='feature-card ", "'>x</div>"]);
+        expect(contexts[0]).toMatchObject({ type: "attr", attrName: "class", hadOpenQuote: true });
+    });
+
+    it("does NOT set hadOpenQuote for unquoted attribute", () => {
+        // class=btn-${expr} — no quote at all
+        const { contexts } = analyzeTemplate(["<div class=btn-", ">x</div>"]);
+        expect(contexts[0]).toMatchObject({ type: "attr", attrName: "class", hadOpenQuote: false });
+    });
+
+    it("does NOT set hadOpenQuote when quotes are already closed", () => {
+        // class="static" ${expr} — the attribute is fully closed, expr is a node
+        const { contexts } = analyzeTemplate(['<div class="static"> ', "</div>"]);
+        expect(contexts[0]).toMatchObject({ type: "node" });
+    });
+
+    it("buildHTML produces valid output for partial with static prefix", () => {
+        // The exact bug pattern: class="feature-card reveal${expr}"
+        const { html } = analyzeTemplate(['<div class="feature-card reveal', '">x</div>']);
+        // Should NOT contain broken HTML like:
+        //   class="feature-card  data-nix-a-0="class""
+        expect(html).toContain('data-nix-a-0="class"');
+        expect(html).not.toContain('class=""');
+        // The static prefix "feature-card reveal" should be consumed by
+        // buildHTML (it becomes part of the attribute value at runtime,
+        // not part of the marker HTML).
+        expect(html).not.toContain('feature-card');
+    });
+
+    it("buildHTML produces valid output for two partials in same template", () => {
+        // Two attributes with nested templates (the real-world pattern)
+        const { html } = analyzeTemplate([
+            '<div class="feature-card reveal',
+            '"><div class="feature-icon',
+            '">x</div></div>',
+        ]);
+        expect(html).toContain('data-nix-a-0="class"');
+        expect(html).toContain('data-nix-a-1="class"');
+        expect(html).not.toContain('class=""');
+    });
+});

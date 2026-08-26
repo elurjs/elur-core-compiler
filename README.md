@@ -1,6 +1,6 @@
 # @deijose/nix-js-compiler
 
-Build-time compiler for [Nix.js](https://github.com/DeijoseDevelop/nix-js-microframework) `html\`\`` templates.
+Build-time compiler for [Nix.js](https://github.com/DeijoseDevelop/nix-js) `html\`\`` templates.
 
 ## What it does
 
@@ -25,7 +25,7 @@ Nix.js + compiler matches or beats Solid on 6 of 9 CPU benchmarks, with lower me
 
 ## Usage
 
-This compiler is used internally by [`@deijose/vite-plugin-nix-js`](https://github.com/DeijoseDevelop/vite-plugin-nix). You don't typically use it directly.
+This compiler is used internally by [`@deijose/vite-plugin-nix-js`](https://github.com/DeijoseDevelop/vite-plugin-nix-js). You don't typically use it directly.
 
 ```ts
 import { compileTemplate, genFactoryCode } from "@deijose/nix-js-compiler";
