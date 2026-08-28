@@ -26,7 +26,7 @@ function genSpecializedFactory(id: string, compiled: CompiledTemplate): Generate
     const protoId = `${id}$proto`;
     const args = compiled.contexts.map((_, index) => `v${index}`);
     const fields = args.map((arg) => `instance.${arg}=${arg};`).join("");
-    const runtimeImports = new Set(["__nixCreateTemplate", "__nixCreateTemplatePrototype"]);
+    const runtimeImports = new Set(["__elurCreateTemplate", "__elurCreateTemplatePrototype"]);
     const delegatedEvents = new Set<string>();
     const paths = uniqueBindingPaths(compiled);
     const pathVars = new Map<string, string>();
@@ -66,28 +66,28 @@ function genSpecializedFactory(id: string, compiled: CompiledTemplate): Generate
         const ctx = binding.context;
 
         if (useBindingGroup && ctx.type === "attr" && binding.expressionKind === "reactive") {
-            runtimeImports.add("__nixEffect");
+            runtimeImports.add("__elurEffect");
             const next = `g${binding.index}`;
             const previous = `p${binding.index}`;
             groupedSetup.push(`let ${next},${previous};`);
-            // Inline attribute update — avoids __nixSetAttr function call
+            // Inline attribute update — avoids __elurSetAttr function call
             if (ctx.attrName === "class") {
                 groupedReads.push(`${next}=${value}();`);
                 groupedApply.push(
                     `if(${next}!==${previous}){${previous}=${next};if(${next}==null||${next}===false)${nodeVar}.removeAttribute("class");else ${nodeVar}.className=${next};}`,
                 );
             } else {
-                runtimeImports.add("__nixSetAttr");
+                runtimeImports.add("__elurSetAttr");
                 groupedReads.push(`${next}=${value}();`);
                 groupedApply.push(
-                    `if(${next}!==${previous}){${previous}=${next};__nixSetAttr(${nodeVar},${JSON.stringify(ctx.attrName)},${next},${ctx.url ?? false},${ctx.executable ?? false});}`,
+                    `if(${next}!==${previous}){${previous}=${next};__elurSetAttr(${nodeVar},${JSON.stringify(ctx.attrName)},${next},${ctx.url ?? false},${ctx.executable ?? false});}`,
                 );
             }
             continue;
         }
 
         if (useBindingGroup && ctx.type === "node" && binding.expressionKind === "reactive-text") {
-            runtimeImports.add("__nixEffect");
+            runtimeImports.add("__elurEffect");
             const text = `t${binding.index}`;
             const next = `g${binding.index}`;
             const previous = `p${binding.index}`;
@@ -105,16 +105,16 @@ function genSpecializedFactory(id: string, compiled: CompiledTemplate): Generate
         }
 
         if (ctx.type === "event") {
-            runtimeImports.add("__nixDelegateEvents");
+            runtimeImports.add("__elurDelegateEvents");
             delegatedEvents.add(ctx.eventName);
-            const eventProp = `__nix_${ctx.eventName}`;
+            const eventProp = `__elur_${ctx.eventName}`;
             if (ctx.modifiers.length > 0) {
-                runtimeImports.add("__nixEvent");
-                runtimeImports.add("__nixClearEvent");
+                runtimeImports.add("__elurEvent");
+                runtimeImports.add("__elurClearEvent");
                 operations.push(
-                    `__nixEvent(${nodeVar},${JSON.stringify(ctx.eventName)},${JSON.stringify(ctx.modifiers)},${value});`,
+                    `__elurEvent(${nodeVar},${JSON.stringify(ctx.eventName)},${JSON.stringify(ctx.modifiers)},${value});`,
                 );
-                cleanupOperations.push(`__nixClearEvent(${nodeVar},${JSON.stringify(ctx.eventName)});`);
+                cleanupOperations.push(`__elurClearEvent(${nodeVar},${JSON.stringify(ctx.eventName)});`);
             } else {
                 operations.push(`${nodeVar}.${eventProp}=${value};`);
                 cleanupOperations.push(`${nodeVar}.${eventProp}=null;`);
@@ -129,35 +129,35 @@ function genSpecializedFactory(id: string, compiled: CompiledTemplate): Generate
                     operations.push(`${nodeVar}.setAttribute(${JSON.stringify(ctx.attrName)},${value});`);
                 }
             } else {
-                runtimeImports.add("__nixAttr");
+                runtimeImports.add("__elurAttr");
                 const dispose = `d${binding.index}`;
                 operations.push(
-                    `const ${dispose}=__nixAttr(${nodeVar},${JSON.stringify(ctx.attrName)},${value},${ctx.url ?? false},${ctx.executable ?? false});`,
+                    `const ${dispose}=__elurAttr(${nodeVar},${JSON.stringify(ctx.attrName)},${value},${ctx.url ?? false},${ctx.executable ?? false});`,
                 );
                 cleanupOperations.push(`if(${dispose})${dispose}();`);
             }
         } else if (binding.expressionKind === "reactive-text") {
-            runtimeImports.add("__nixReactiveText");
+            runtimeImports.add("__elurReactiveText");
             const writer = `w${binding.index}`;
             operations.push(
-                `const ${writer}=__nixReactiveText(${nodeVar},${value},${JSON.stringify(binding.target)},postMountHooks||(postMountHooks=[]));`,
+                `const ${writer}=__elurReactiveText(${nodeVar},${value},${JSON.stringify(binding.target)},postMountHooks||(postMountHooks=[]));`,
             );
             cleanupOperations.push(`${writer}.dispose();`);
             mountedOperations.push(`${writer}.mounted();`);
         } else if (binding.expressionKind === "static" || binding.expressionKind === "generic") {
-            // Inline primitive text — avoids __nixNode function call overhead
-            // Fast path for string/number; fallback to __nixNode for complex values
-            runtimeImports.add("__nixNode");
+            // Inline primitive text — avoids __elurNode function call overhead
+            // Fast path for string/number; fallback to __elurNode for complex values
+            runtimeImports.add("__elurNode");
             const result = `r${binding.index}`;
             operations.push(
-                `let ${result}=null;if(typeof ${value}==="string"||typeof ${value}==="number")${nodeVar}.textContent=${value};else if(${value}!=null&&${value}!==false){${result}=__nixNode(${nodeVar},${value},${binding.target === "node"},postMountHooks);if(${result}&&${result}.hooks.length)(postMountHooks||(postMountHooks=[])).push(...${result}.hooks);}`,
+                `let ${result}=null;if(typeof ${value}==="string"||typeof ${value}==="number")${nodeVar}.textContent=${value};else if(${value}!=null&&${value}!==false){${result}=__elurNode(${nodeVar},${value},${binding.target === "node"},postMountHooks);if(${result}&&${result}.hooks.length)(postMountHooks||(postMountHooks=[])).push(...${result}.hooks);}`,
             );
             cleanupOperations.push(`if(${result}&&${result}.dispose)${result}.dispose();`);
         } else {
-            runtimeImports.add("__nixNode");
+            runtimeImports.add("__elurNode");
             const result = `r${binding.index}`;
             operations.push(
-                `const ${result}=__nixNode(${nodeVar},${value},${binding.target === "node"},postMountHooks);if(${result}&&${result}.hooks.length)(postMountHooks||(postMountHooks=[])).push(...${result}.hooks);`,
+                `const ${result}=__elurNode(${nodeVar},${value},${binding.target === "node"},postMountHooks);if(${result}&&${result}.hooks.length)(postMountHooks||(postMountHooks=[])).push(...${result}.hooks);`,
             );
             cleanupOperations.push(`if(${result}&&${result}.dispose)${result}.dispose();`);
         }
@@ -165,7 +165,7 @@ function genSpecializedFactory(id: string, compiled: CompiledTemplate): Generate
 
     if (useBindingGroup) {
         operations.push(
-            `const groupDispose=__nixEffect(()=>{${groupedReads.join("")}${groupedApply.join("")}});`,
+            `const groupDispose=__elurEffect(()=>{${groupedReads.join("")}${groupedApply.join("")}});`,
         );
         cleanupOperations.push("groupDispose();", ...groupedCleanup);
     }
@@ -173,8 +173,8 @@ function genSpecializedFactory(id: string, compiled: CompiledTemplate): Generate
     const contextCode = serializeContexts(compiled.contexts);
     const keys = JSON.stringify(args);
     const code = [
-        `const ${cloneId}=/*#__PURE__*/__nixCreateTemplate(${JSON.stringify(compiled.optimizedHtml)});`,
-        delegatedEvents.size > 0 ? `__nixDelegateEvents(${JSON.stringify([...delegatedEvents])});` : "",
+        `const ${cloneId}=/*#__PURE__*/__elurCreateTemplate(${JSON.stringify(compiled.optimizedHtml)});`,
+        delegatedEvents.size > 0 ? `__elurDelegateEvents(${JSON.stringify([...delegatedEvents])});` : "",
         `function ${mountId}(parent,before,${args.join(",")}){`,
         `const root=${cloneId}();`,
         ...declarations,
@@ -187,7 +187,7 @@ function genSpecializedFactory(id: string, compiled: CompiledTemplate): Generate
         `return()=>{${[...cleanupOperations].reverse().join("")}root.parentNode?.removeChild(root);};`,
         `}`,
         `function ${renderId}(parent,before){return ${mountId}(parent,before,${args.map((arg) => `this.${arg}`).join(",")});}`,
-        `const ${protoId}=/*#__PURE__*/__nixCreateTemplatePrototype(${renderId},${JSON.stringify(compiled.strings)},${contextCode},${keys});`,
+        `const ${protoId}=/*#__PURE__*/__elurCreateTemplatePrototype(${renderId},${JSON.stringify(compiled.strings)},${contextCode},${keys});`,
         `function ${id}(${args.join(",")}){const instance=Object.create(${protoId});${fields}return instance;}`,
     ].join("\n");
 
@@ -203,10 +203,10 @@ function genFallbackFactory(id: string, compiled: CompiledTemplate): GeneratedFa
     const args = compiled.contexts.map((_, index) => `v${index}`);
     const code = [
         `const ${resolverId}=${genResolverFunction(id, compiled)};`,
-        `const ${baseId}=__nixCompiledTemplate(${JSON.stringify(compiled.strings)},${JSON.stringify(compiled.htmlWithoutMarkers)},${serializeContexts(compiled.contexts)},${serializePathMap(compiled.pathMap)},${resolverId});`,
+        `const ${baseId}=__elurCompiledTemplate(${JSON.stringify(compiled.strings)},${JSON.stringify(compiled.htmlWithoutMarkers)},${serializeContexts(compiled.contexts)},${serializePathMap(compiled.pathMap)},${resolverId});`,
         `function ${id}(${args.join(",")}){return ${baseId}([${args.join(",")}]);}`,
     ].join("\n");
-    return { code, runtimeImports: ["__nixCompiledTemplate"] };
+    return { code, runtimeImports: ["__elurCompiledTemplate"] };
 }
 
 function uniqueBindingPaths(compiled: CompiledTemplate): number[][] {

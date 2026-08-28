@@ -1,5 +1,5 @@
 // =============================================================================
-// index.ts — Public API for @deijose/nix-js-compiler
+// index.ts — Public API for @elurjs/core-compiler
 // =============================================================================
 
 import { analyzeTemplate } from "./analyze.js";

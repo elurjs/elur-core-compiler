@@ -1,5 +1,5 @@
 // =============================================================================
-// Shared types for the Nix.js compiler
+// Shared types for the Elur compiler
 // =============================================================================
 
 export type BindingContext =
@@ -25,9 +25,9 @@ export interface CompiledBinding {
 export interface CompiledTemplate {
     /** Original template strings (for SSR descriptor compatibility). */
     strings: readonly string[];
-    /** HTML with data-nix-* markers (used for walking at build time). */
+    /** HTML with data-elur-* markers (used for walking at build time). */
     htmlWithMarkers: string;
-    /** HTML with data-nix-* attributes removed (used by the generic fallback). */
+    /** HTML with data-elur-* attributes removed (used by the generic fallback). */
     htmlWithoutMarkers: string;
     /** Compact HTML used by the imperative renderer. */
     optimizedHtml: string;

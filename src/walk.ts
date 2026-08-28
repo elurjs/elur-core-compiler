@@ -57,8 +57,8 @@ export function walkTemplate(
 
             if (child.type === "comment") {
                 const text = child.text ?? "";
-                if (text.startsWith("nix-")) {
-                    const idx = parseInt(text.slice(4), 10);
+                if (text.startsWith("elur-")) {
+                    const idx = parseInt(text.slice(5), 10);
                     if (!isNaN(idx) && idx < numBindings) {
                         pathMap[idx] = { nodeIndex, name: null };
                         accessPaths[idx] = childPath;
@@ -66,14 +66,14 @@ export function walkTemplate(
                 }
             } else if (child.attrs) {
                 for (const attr of child.attrs) {
-                    if (attr.name.startsWith("data-nix-a-")) {
-                        const idx = parseInt(attr.name.slice(11), 10);
+                    if (attr.name.startsWith("data-elur-a-")) {
+                        const idx = parseInt(attr.name.slice(12), 10);
                         if (!isNaN(idx) && idx < numBindings) {
                             pathMap[idx] = { nodeIndex, name: attr.value };
                             accessPaths[idx] = childPath;
                         }
-                    } else if (attr.name.startsWith("data-nix-e-")) {
-                        const idx = parseInt(attr.name.slice(11), 10);
+                    } else if (attr.name.startsWith("data-elur-e-")) {
+                        const idx = parseInt(attr.name.slice(12), 10);
                         if (!isNaN(idx) && idx < numBindings) {
                             pathMap[idx] = { nodeIndex, name: attr.value };
                             accessPaths[idx] = childPath;
@@ -111,7 +111,7 @@ export function optimizeTemplate(
                 if (UNSAFE_SPECIALIZED_TAGS.has(tag)) specialized = false;
                 const retainedAttrs: Array<{ name: string; value: string }> = [];
                 for (const attr of child.attrs ?? []) {
-                    const match = /^data-nix-[ae]-(\d+)$/.exec(attr.name);
+                    const match = /^data-elur-[ae]-(\d+)$/.exec(attr.name);
                     if (match) {
                         targetNodes.set(Number(match[1]), { node: child, target: "node" });
                     } else {
@@ -124,7 +124,7 @@ export function optimizeTemplate(
             }
 
             if (child.type !== "comment") continue;
-            const match = /^nix-(\d+)$/.exec(child.text ?? "");
+            const match = /^elur-(\d+)$/.exec(child.text ?? "");
             if (!match) continue;
             const index = Number(match[1]);
             if (parent && parent.children.length === 1) {
@@ -255,5 +255,5 @@ function escapeAttribute(value: string): string {
 }
 
 export function removeMarkerAttributes(html: string): string {
-    return html.replace(/\s+data-nix-[ae]-\d+="[^"]*"/g, "");
+    return html.replace(/\s+data-elur-[ae]-\d+="[^"]*"/g, "");
 }

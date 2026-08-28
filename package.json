@@ -1,7 +1,7 @@
 {
-    "name": "@deijose/nix-js-compiler",
+    "name": "@elurjs/core-compiler",
     "version": "1.0.0",
-    "description": "Build-time compiler for Nix.js html`` templates — pre-computes descriptors, pathMaps, and generates direct node access code.",
+    "description": "Build-time compiler for Elur html`` templates — pre-computes descriptors, pathMaps, and generates direct node access code.",
     "type": "module",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
@@ -22,7 +22,7 @@
         "prepublishOnly": "npm run build"
     },
     "keywords": [
-        "nix-js",
+        "elur",
         "compiler",
         "template",
         "dom",
@@ -30,15 +30,15 @@
         "signals",
         "vite"
     ],
-    "author": "DeijoseDevelop",
+    "author": "elurjs",
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "https://github.com/DeijoseDevelop/nix-js-compiler.git"
+        "url": "https://github.com/elurjs/core-compiler.git"
     },
-    "homepage": "https://github.com/DeijoseDevelop/nix-js-compiler#readme",
+    "homepage": "https://github.com/elurjs/core-compiler#readme",
     "bugs": {
-        "url": "https://github.com/DeijoseDevelop/nix-js-compiler/issues"
+        "url": "https://github.com/elurjs/core-compiler/issues"
     },
     "devDependencies": {
         "typescript": "^7.0.0",

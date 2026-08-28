@@ -1,6 +1,6 @@
-# @deijose/nix-js-compiler
+# @elurjs/core-compiler
 
-Build-time compiler for [Nix.js](https://github.com/DeijoseDevelop/nix-js) `html\`\`` templates.
+Build-time compiler for [Elur](https://github.com/elurjs/elur) `html\`\`` templates.
 
 ## What it does
 
@@ -21,17 +21,17 @@ Benchmarked against the [js-framework-benchmark](https://github.com/krausest/js-
 - **clear 1k**: -44.0%
 - **create 10k**: -25.1%
 
-Nix.js + compiler matches or beats Solid on 6 of 9 CPU benchmarks, with lower memory and faster startup.
+Elur + compiler matches or beats Solid on 6 of 9 CPU benchmarks, with lower memory and faster startup.
 
 ## Usage
 
-This compiler is used internally by [`@deijose/vite-plugin-nix-js`](https://github.com/DeijoseDevelop/vite-plugin-nix-js). You don't typically use it directly.
+This compiler is used internally by [`@elurjs/vite-plugin-elur`](https://github.com/elurjs/vite-plugin-elur). You don't typically use it directly.
 
 ```ts
-import { compileTemplate, genFactoryCode } from "@deijose/nix-js-compiler";
+import { compileTemplate, genFactoryCode } from "@elurjs/core-compiler";
 
 const compiled = compileTemplate(strings, expressionKinds);
-const factory = genFactoryCode("_nixFactory$1", compiled);
+const factory = genFactoryCode("_elurFactory$1", compiled);
 // factory.code → generated JS string
 // factory.runtimeImports → runtime helpers needed
 ```

@@ -32,13 +32,13 @@ describe("analyzeTemplate", () => {
 
     it("builds HTML with markers", () => {
         const { html } = analyzeTemplate(["<div>", "</div>"]);
-        expect(html).toBe("<div><!--nix-0--></div>");
+        expect(html).toBe("<div><!--elur-0--></div>");
     });
 
     it("builds HTML with attribute markers", () => {
         const { html } = analyzeTemplate(['<div class="', '"></div>']);
-        // buildHTML cuts `class="` from the string, leaving `<div ` then adds ` data-nix-a-0="class"`
-        expect(html).toBe('<div  data-nix-a-0="class"></div>');
+        // buildHTML cuts `class="` from the string, leaving `<div ` then adds ` data-elur-a-0="class"`
+        expect(html).toBe('<div  data-elur-a-0="class"></div>');
     });
 });
 
@@ -53,10 +53,10 @@ describe("parseHTML", () => {
     });
 
     it("parses comment", () => {
-        const nodes = parseHTML("<!--nix-0-->");
+        const nodes = parseHTML("<!--elur-0-->");
         expect(nodes).toHaveLength(1);
         expect(nodes[0].type).toBe("comment");
-        expect(nodes[0].text).toBe("nix-0");
+        expect(nodes[0].text).toBe("elur-0");
     });
 
     it("parses nested elements", () => {
@@ -81,7 +81,7 @@ describe("parseHTML", () => {
 
 describe("walkTemplate", () => {
     it("builds pathMap for node binding", () => {
-        const html = "<div><!--nix-0--></div>";
+        const html = "<div><!--elur-0--></div>";
         const parsed = parseHTML(html);
         const contexts = [{ type: "node" as const }];
         const { pathMap, accessPaths } = walkTemplate(parsed, contexts);
@@ -90,7 +90,7 @@ describe("walkTemplate", () => {
     });
 
     it("builds pathMap for attribute binding", () => {
-        const html = '<div data-nix-a-0="class"></div>';
+        const html = '<div data-elur-a-0="class"></div>';
         const parsed = parseHTML(html);
         const contexts = [{ type: "attr" as const, attrName: "class", hadOpenQuote: false }];
         const { pathMap, accessPaths } = walkTemplate(parsed, contexts);
@@ -105,7 +105,7 @@ describe("compileTemplate", () => {
         expect(compiled.contexts).toHaveLength(1);
         expect(compiled.contexts[0]).toEqual({ type: "node" });
         // Comment markers are kept — they're replaced at render time
-        expect(compiled.htmlWithoutMarkers).toBe("<div><!--nix-0--></div>");
+        expect(compiled.htmlWithoutMarkers).toBe("<div><!--elur-0--></div>");
         expect(compiled.pathMap[0]).toEqual({ nodeIndex: 2, name: null });
         expect(compiled.accessPaths[0]).toEqual([0, 0]);
     });
@@ -135,7 +135,7 @@ describe("compileTemplate", () => {
 
     it("removes marker attributes from HTML", () => {
         const compiled = compileTemplate(['<div class="', '" id="', '"></div>']);
-        // Both class and id are bindings, so both data-nix-a-* are removed (with leading whitespace)
+        // Both class and id are bindings, so both data-elur-a-* are removed (with leading whitespace)
         expect(compiled.htmlWithoutMarkers).toBe('<div></div>');
     });
 
@@ -151,7 +151,7 @@ describe("compileTemplate", () => {
         expect(compiled.specialized).toBe(true);
         expect(compiled.singleRoot).toBe(true);
         expect(compiled.optimizedHtml).toBe("<tr><td></td><td><a></a></td></tr>");
-        expect(compiled.optimizedHtml).not.toContain("nix-");
+        expect(compiled.optimizedHtml).not.toContain("elur-");
         expect(compiled.bindings[1]).toMatchObject({ target: "parent", path: [0, 0] });
     });
 
@@ -164,17 +164,17 @@ describe("compileTemplate", () => {
 
         expect(generated.code).toContain("function _factory(v0,v1)");
         expect(generated.code).toContain(".firstChild.nextSibling");
-        expect(generated.code).toContain("__nixNode");
-        expect(generated.code).toContain("__nixAttr");
+        expect(generated.code).toContain("__elurNode");
+        expect(generated.code).toContain("__elurAttr");
         expect(generated.code).not.toContain("_activateBindingsWithNodes");
-        expect(generated.runtimeImports).toContain("__nixCreateTemplate");
+        expect(generated.runtimeImports).toContain("__elurCreateTemplate");
     });
 
     it("falls back for namespace-sensitive templates", () => {
         const compiled = compileTemplate(["<svg><text>", "</text></svg>"], ["reactive"]);
         const generated = genFactoryCode("_factory", compiled);
         expect(compiled.specialized).toBe(false);
-        expect(generated.runtimeImports).toEqual(["__nixCompiledTemplate"]);
+        expect(generated.runtimeImports).toEqual(["__elurCompiledTemplate"]);
     });
 });
 
@@ -183,9 +183,9 @@ describe("hadOpenQuote detection (partial attribute interpolation bug)", () => {
     // For partial interpolation like class="prefix${expr}", tagContent is
     // 'div class="prefix' — ends with 'x', not '"', but there IS an open
     // quote after '='. This produced broken HTML:
-    //   <div class="prefix data-nix-a-0="class"">
+    //   <div class="prefix data-elur-a-0="class"">
     // instead of:
-    //   <div data-nix-a-0="class">
+    //   <div data-elur-a-0="class">
 
     it("detects hadOpenQuote when string ends right after opening quote", () => {
         // class="${expr}" — tagContent = 'div class="'
@@ -221,8 +221,8 @@ describe("hadOpenQuote detection (partial attribute interpolation bug)", () => {
         // The exact bug pattern: class="feature-card reveal${expr}"
         const { html } = analyzeTemplate(['<div class="feature-card reveal', '">x</div>']);
         // Should NOT contain broken HTML like:
-        //   class="feature-card  data-nix-a-0="class""
-        expect(html).toContain('data-nix-a-0="class"');
+        //   class="feature-card  data-elur-a-0="class""
+        expect(html).toContain('data-elur-a-0="class"');
         expect(html).not.toContain('class=""');
         // The static prefix "feature-card reveal" should be consumed by
         // buildHTML (it becomes part of the attribute value at runtime,
@@ -237,8 +237,8 @@ describe("hadOpenQuote detection (partial attribute interpolation bug)", () => {
             '"><div class="feature-icon',
             '">x</div></div>',
         ]);
-        expect(html).toContain('data-nix-a-0="class"');
-        expect(html).toContain('data-nix-a-1="class"');
+        expect(html).toContain('data-elur-a-0="class"');
+        expect(html).toContain('data-elur-a-1="class"');
         expect(html).not.toContain('class=""');
     });
 });

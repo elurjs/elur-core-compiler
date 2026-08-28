@@ -1,8 +1,8 @@
 // =============================================================================
-// analyze.ts — detectContext + buildHTML ported from @deijose/nix-js core
+// analyze.ts — detectContext + buildHTML ported from @elurjs/core core
 // =============================================================================
 // These are pure string-manipulation functions with no DOM dependencies.
-// Ported from nix-js-microframework/src/nix/template/bindings.ts and html.ts
+// Ported from elur-microframework/src/elur/template/bindings.ts and html.ts
 // to keep the compiler standalone.
 
 import type { BindingContext } from "./types.js";
@@ -105,7 +105,7 @@ export function buildHTML(
             const ctx = contexts[i];
 
             if (ctx.type === "node") {
-                result += s + `<!--nix-${i}-->`;
+                result += s + `<!--elur-${i}-->`;
             } else if (ctx.type === "event") {
                 const full = ctx.modifiers.length
                     ? `${ctx.eventName}.${ctx.modifiers.join(".")}`
@@ -120,18 +120,18 @@ export function buildHTML(
                 // right after the opening quote (post-Phase-1 clean strings).
                 const eqPos = s.lastIndexOf(attrPrefix);
                 if (eqPos !== -1) {
-                    result += s.slice(0, eqPos) + ` data-nix-e-${i}="${ctx.eventName}"`;
+                    result += s.slice(0, eqPos) + ` data-elur-e-${i}="${ctx.eventName}"`;
                 } else {
-                    result += s + ` data-nix-e-${i}="${ctx.eventName}"`;
+                    result += s + ` data-elur-e-${i}="${ctx.eventName}"`;
                 }
                 if (ctx.hadOpenQuote) skipLeading[i + 1] = 1;
             } else {
                 const attrPrefix = `${ctx.attrName}=`;
                 const eqPos = s.lastIndexOf(attrPrefix);
                 if (eqPos !== -1) {
-                    result += s.slice(0, eqPos) + ` data-nix-a-${i}="${ctx.attrName}"`;
+                    result += s.slice(0, eqPos) + ` data-elur-a-${i}="${ctx.attrName}"`;
                 } else {
-                    result += s + ` data-nix-a-${i}="${ctx.attrName}"`;
+                    result += s + ` data-elur-a-${i}="${ctx.attrName}"`;
                 }
                 if (ctx.hadOpenQuote) skipLeading[i + 1] = 1;
             }
@@ -154,7 +154,7 @@ export function analyzeTemplate(strings: readonly string[]): {
     for (let i = 0; i < strings.length - 1; i++) {
         accumulated += strings[i];
         contexts.push(detectContext(accumulated));
-        accumulated += "__nix__";
+        accumulated += "__elur__";
     }
     const html = buildHTML(strings, contexts);
     return { contexts, html };
