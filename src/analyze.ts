@@ -14,18 +14,18 @@ const URL_ATTRS = new Set([
     "poster", "background", "cite", "ping", "data",
 ]);
 
-export function isUrlAttrName(name: string): boolean {
+function isUrlAttrName(name: string): boolean {
     return URL_ATTRS.has(name.toLowerCase());
 }
 
-export function isExecutableAttrName(name: string): boolean {
+function isExecutableAttrName(name: string): boolean {
     const n = name.toLowerCase();
     return n.startsWith("on") || n === "srcdoc";
 }
 
 // --- detectContext (ported from bindings.ts) ---
 
-export function detectContext(prevString: string): BindingContext {
+function detectContext(prevString: string): BindingContext {
     const lastClose = prevString.lastIndexOf(">");
     const lastOpen = prevString.lastIndexOf("<");
 
@@ -87,7 +87,7 @@ export function detectContext(prevString: string): BindingContext {
 
 // --- buildHTML (ported from html.ts) ---
 
-export function buildHTML(
+function buildHTML(
     strings: readonly string[],
     contexts: BindingContext[],
 ): string {

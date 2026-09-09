@@ -4,7 +4,7 @@
 
 import type { CompiledTemplate } from "./types.js";
 
-export interface GeneratedFactory {
+interface GeneratedFactory {
     code: string;
     runtimeImports: string[];
 }
