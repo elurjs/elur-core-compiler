@@ -1,50 +1,50 @@
 {
-    "name": "@elurjs/core-compiler",
-    "version": "1.0.0",
-    "description": "Build-time compiler for Elur html`` templates — pre-computes descriptors, pathMaps, and generates direct node access code.",
-    "type": "module",
-    "main": "./dist/index.js",
-    "types": "./dist/index.d.ts",
-    "exports": {
-        ".": {
-            "types": "./dist/index.d.ts",
-            "import": "./dist/index.js"
-        }
-    },
-    "files": [
-        "dist",
-        "README.md"
-    ],
-    "engines": {
-        "node": ">=20.19.0"
-    },
-    "scripts": {
-        "build": "tsc",
-        "typecheck": "tsc --noEmit",
-        "test": "vitest run",
-        "prepublishOnly": "npm run build"
-    },
-    "keywords": [
-        "elur",
-        "compiler",
-        "template",
-        "dom",
-        "reactive",
-        "signals",
-        "vite"
-    ],
-    "author": "Deiver Vasquez",
-    "license": "MIT",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/elurjs/core-compiler.git"
-    },
-    "homepage": "https://github.com/elurjs/core-compiler#readme",
-    "bugs": {
-        "url": "https://github.com/elurjs/core-compiler/issues"
-    },
-    "devDependencies": {
-        "typescript": "~7.0.2",
-        "vitest": "^5.0.0"
+  "name": "@elurjs/core-compiler",
+  "version": "1.1.0-beta.0",
+  "description": "Build-time compiler for Elur html`` templates — pre-computes descriptors, pathMaps, and generates direct node access code.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "elur",
+    "compiler",
+    "template",
+    "dom",
+    "reactive",
+    "signals",
+    "vite"
+  ],
+  "author": "Deiver Vasquez",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/elurjs/core-compiler.git"
+  },
+  "homepage": "https://github.com/elurjs/core-compiler#readme",
+  "bugs": {
+    "url": "https://github.com/elurjs/core-compiler/issues"
+  },
+  "devDependencies": {
+    "typescript": "~7.0.2",
+    "vitest": "^5.0.0"
+  }
 }

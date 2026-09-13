@@ -163,18 +163,110 @@ describe("compileTemplate", () => {
         const generated = genFactoryCode("_factory", compiled);
 
         expect(generated.code).toContain("function _factory(v0,v1)");
-        expect(generated.code).toContain(".firstChild.nextSibling");
+        // C.15: acceso childNodes[i] O(1) — ya no cadenas .nextSibling.
+        expect(generated.code).toContain(".childNodes[1]");
         expect(generated.code).toContain("__elurNode");
         expect(generated.code).toContain("__elurAttr");
         expect(generated.code).not.toContain("_activateBindingsWithNodes");
         expect(generated.runtimeImports).toContain("__elurCreateTemplate");
     });
 
-    it("falls back for namespace-sensitive templates", () => {
+    it("C.14: svg/math se especializan (namespace-aware en runtime)", () => {
         const compiled = compileTemplate(["<svg><text>", "</text></svg>"], ["reactive"]);
         const generated = genFactoryCode("_factory", compiled);
-        expect(compiled.specialized).toBe(false);
-        expect(generated.runtimeImports).toEqual(["__elurCompiledTemplate"]);
+        expect(compiled.specialized).toBe(true);
+        expect(compiled.bindings[0].ns).toBe("svg");
+        expect(generated.runtimeImports).not.toContain("__elurCompiledTemplate");
+    });
+
+    it("C.14: template/script/style/pre con bindings siguen siendo fallback", () => {
+        const tpl = compileTemplate(["<div><template><b>", "</b></template></div>"], ["reactive"]);
+        expect(tpl.specialized).toBe(false);
+        const scr = compileTemplate(["<div><script>", "</script></div>"], ["reactive"]);
+        expect(scr.specialized).toBe(false);
+    });
+
+    it("emits __elurBindSignalText for T1 signal node bindings (C.6)", () => {
+        const compiled = compileTemplate(["<td>", "</td>"], ["signal"]);
+        const generated = genFactoryCode("_factory", compiled);
+
+        expect(generated.code).toContain("__elurBindSignalText(");
+        expect(generated.code).not.toContain("__elurNode(");
+        expect(generated.code).not.toContain("__elurReactiveText");
+        expect(generated.runtimeImports).toContain("__elurBindSignalText");
+    });
+
+    it("emits __elurBindSignalAttrHtml for T1 signal attribute bindings (F4)", () => {
+        const compiled = compileTemplate(['<div class="', '"></div>'], ["signal"]);
+        const generated = genFactoryCode("_factory", compiled);
+
+        // F4: attr HTML resuelto en build — writer dedicado sin checks runtime.
+        expect(generated.code).toContain('__elurBindSignalAttrHtml(');
+        expect(generated.code).toContain('"class"');
+        expect(generated.runtimeImports).toContain("__elurBindSignalAttrHtml");
+        expect(generated.runtimeImports).not.toContain("__elurBindSignalAttr");
+    });
+
+    it("F4: URL attrs caen al writer genérico (sanitización preservada)", () => {
+        const compiled = compileTemplate(['<a href="', '"></a>'], ["signal"]);
+        const generated = genFactoryCode("_factory", compiled);
+
+        expect(generated.code).toContain('__elurBindSignalAttr(');
+        expect(generated.code).not.toContain("__elurBindSignalAttrHtml");
+    });
+
+    it("F4: attrs en namespace SVG caen al writer genérico", () => {
+        const compiled = compileTemplate(
+            ['<svg><circle fill="', '"></circle></svg>'],
+            ["signal"],
+        );
+        const generated = genFactoryCode("_factory", compiled);
+
+        expect(generated.code).toContain('__elurBindSignalAttr(');
+        expect(generated.code).not.toContain("__elurBindSignalAttrHtml");
+    });
+
+    it("does NOT route signal-kind event bindings through signal helpers", () => {
+        // Event context keeps the arrow as handler — the plugin only lowers
+        // node/attr contexts; if a "signal" kind ever reaches an event
+        // binding the factory must not emit a binding helper for it.
+        const compiled = compileTemplate(['<button @click="', '"></button>'], ["signal"]);
+        const generated = genFactoryCode("_factory", compiled);
+
+        expect(generated.code).not.toContain("__elurBindSignalText");
+        expect(generated.code).not.toContain("__elurBindSignalAttr");
+    });
+
+    it("mixes T1 signal bindings with generic ones in one template", () => {
+        const compiled = compileTemplate(
+            ["<tr><td>", '</td><td class="', '">x</td></tr>'],
+            ["signal", "reactive"],
+        );
+        const generated = genFactoryCode("_factory", compiled);
+
+        expect(generated.code).toContain("__elurBindSignalText(");
+        // The reactive class binding still uses the generic attr path
+        expect(generated.code).toMatch(/__elurAttr\(|__elurSetAttr\(|__elurEffect/);
+        expect(generated.code).not.toContain("__elurBindSignalAttr");
+    });
+
+    it("emits __elurBindDerivedText for T2 derived node bindings (C.7)", () => {
+        const compiled = compileTemplate(["<td>", "</td>"], ["derived"]);
+        const generated = genFactoryCode("_factory", compiled);
+
+        expect(generated.code).toContain("__elurBindDerivedText(");
+        expect(generated.code).not.toContain("__elurNode(");
+        expect(generated.runtimeImports).toContain("__elurBindDerivedText");
+    });
+
+    it("emits __elurBindDerivedAttrHtml for T2 derived attribute bindings (F4)", () => {
+        const compiled = compileTemplate(['<div class="', '"></div>'], ["derived"]);
+        const generated = genFactoryCode("_factory", compiled);
+
+        expect(generated.code).toContain('__elurBindDerivedAttrHtml(');
+        expect(generated.code).toContain('"class"');
+        expect(generated.runtimeImports).toContain("__elurBindDerivedAttrHtml");
+        expect(generated.runtimeImports).not.toContain("__elurBindDerivedAttr");
     });
 });
 
@@ -240,5 +332,189 @@ describe("hadOpenQuote detection (partial attribute interpolation bug)", () => {
         expect(html).toContain('data-elur-a-0="class"');
         expect(html).toContain('data-elur-a-1="class"');
         expect(html).not.toContain('class=""');
+    });
+});
+
+describe("C.3 per-binding fallback", () => {
+    it("ref attr degrada sólo ese binding — el template sigue especializado", () => {
+        const compiled = compileTemplate(
+            ['<div ref="', '" class="', '">x</div>'],
+            ["generic", "signal"],
+        );
+        expect(compiled.specialized).toBe(true);
+        const generated = genFactoryCode("_f", compiled);
+        expect(generated.code).toContain("__elurGenericAttr");
+        expect(generated.code).toContain('"ref"');
+        // F4: el signal attr html usa el writer resuelto, no el genérico.
+        expect(generated.code).toContain("__elurBindSignalAttrHtml");
+        expect(generated.runtimeImports).toContain("__elurGenericAttr");
+        expect(generated.runtimeImports).toContain("__elurBindSignalAttrHtml");
+    });
+
+    it("show/hide attrs rutean al genérico sin matar la especialización", () => {
+        const compiled = compileTemplate(
+            ['<div show="', '"><span>', '</span></div>'],
+            ["reactive", "signal"],
+        );
+        expect(compiled.specialized).toBe(true);
+        const generated = genFactoryCode("_f", compiled);
+        expect(generated.code).toContain('__elurGenericAttr');
+        expect(generated.code).toContain('"show"');
+        // El binding de nodo T1 dentro sigue especializado.
+        expect(generated.code).toContain("__elurBindSignalText");
+    });
+
+    it("eventos no delegables y capture/once/passive → listener directo", () => {
+        for (const decl of ["focus", "click.capture", "click.once", "click.passive"]) {
+            const compiled = compileTemplate(
+                [`<button @${decl}="`, '">x</button>'],
+                ["reactive"],
+            );
+            expect(compiled.specialized).toBe(true);
+            const generated = genFactoryCode("_f", compiled);
+            expect(generated.code).toContain("__elurGenericEvent");
+            expect(generated.code).not.toContain("__elurDelegateEvents");
+        }
+    });
+
+    it("eventos delegables sin mods conflictivos siguen delegando", () => {
+        const compiled = compileTemplate(
+            ['<button @click="', '">x</button>'],
+            ["reactive"],
+        );
+        const generated = genFactoryCode("_f", compiled);
+        expect(generated.code).toContain("__elur_click");
+        expect(generated.code).not.toContain("__elurGenericEvent");
+    });
+
+    it("click con prevent/self (delegable) conserva la delegación", () => {
+        const compiled = compileTemplate(
+            ['<button @click.prevent.self="', '">x</button>'],
+            ["reactive"],
+        );
+        expect(compiled.specialized).toBe(true);
+        const generated = genFactoryCode("_f", compiled);
+        expect(generated.code).toContain("__elurEvent");
+        expect(generated.code).not.toContain("__elurGenericEvent");
+    });
+
+    it("C.14: multi-root emite factory de fragmento con bounds", () => {
+        const multi = compileTemplate(["<div>", "</div><span>x</span>"], ["static"]);
+        expect(multi.specialized).toBe(true);
+        const generated = genFactoryCode("_f", multi);
+        expect(generated.runtimeImports).toContain("__elurCreateFragment");
+        expect(generated.code).toContain("elur-fs");
+        expect(generated.code).toContain("deleteContents");
+    });
+});
+
+describe("C.13 hidratación compilada", () => {
+    it("emite hydrate$N posicional para templates especializados", () => {
+        const compiled = compileTemplate(
+            ['<tr class="', '"><td>', '</td><td><a @click="', '">x</a></td></tr>'],
+            ["derived", "signal", "reactive"],
+        );
+        const generated = genFactoryCode("_f", compiled);
+        // La función hydrate recibe (root, opts, v0…vN) y activa por posición.
+        expect(generated.code).toContain("function _f$hydrate(root,opts,v0,v1,v2)");
+        expect(generated.code).toContain("__elurBindDerivedAttrHtml(root,\"class\",v0");
+        expect(generated.code).toContain("__elurMarkersIn(");
+        expect(generated.code).toContain("__elurHydrateRange(");
+        expect(generated.code).toContain("__elurNextEl(");
+        expect(generated.code).toContain(".__elur_click=v2");
+        // El proto recibe la hydrate fn como 5º argumento.
+        expect(generated.code).toContain("__elurCreateTemplatePrototype(_f$render,");
+        expect(generated.code).toContain(",_f$hydrate,_f$ssr)");
+        // Imports de runtime necesarios.
+        for (const imp of ["__elurNextEl", "__elurMarkersIn", "__elurHydrateRange"]) {
+            expect(generated.runtimeImports).toContain(imp);
+        }
+    });
+
+    it("node bindings entre hermanos usan __elurMarkers con scan acotado", () => {
+        const compiled = compileTemplate(
+            ["<div><b>a</b>", "<b>c</b></div>"],
+            ["signal"],
+        );
+        const generated = genFactoryCode("_f", compiled);
+        expect(generated.code).toContain("__elurMarkers(");
+        expect(generated.code).toContain(".end.nextSibling");
+    });
+
+    it("attrs estáticos no emiten activación en hydrate", () => {
+        const compiled = compileTemplate(
+            ['<div class="', '" title="', '"><i>', '</i></div>'],
+            ["static", "signal", "signal"],
+        );
+        const generated = genFactoryCode("_f", compiled);
+        const hydrateBody = generated.code.match(/function _f\$hydrate[\s\S]*?\n\}/)![0];
+        expect(hydrateBody).toContain('__elurBindSignalAttrHtml(root,"title"');
+        expect(hydrateBody).not.toContain('"class"');
+    });
+
+    it("eventos no delegables van por __elurGenericEvent en hydrate", () => {
+        const compiled = compileTemplate(
+            ['<button @focus="', '">x</button>'],
+            ["reactive"],
+        );
+        const generated = genFactoryCode("_f", compiled);
+        expect(generated.code).toContain("__elurGenericEvent(root,\"focus\"");
+    });
+
+    it("C.14: svg emite hydrate posicional; multi-root no (bounds)", () => {
+        const svg = compileTemplate(["<svg><text>", "</text></svg>"], ["reactive"]);
+        expect(genFactoryCode("_f", svg).code).toContain("$hydrate");
+        const multi = compileTemplate(["<div>", "</div><span>x</span>"], ["reactive"]);
+        const gen = genFactoryCode("_f", multi);
+        expect(gen.code).not.toContain("$hydrate");
+    });
+});
+
+describe("C.9 constant folding", () => {
+    it("literal en attr se hornea en optimizedHtml y no emite binding", () => {
+        const compiled = compileTemplate(
+            ['<div class="', '" title="', '">x</div>'],
+            ["static", "signal"],
+            ["active", undefined],
+        );
+        // class horneado; title queda para el binding runtime
+        expect(compiled.optimizedHtml).toBe('<div class="active">x</div>');
+        // contexts conservados para paridad SSR; bindings sin el plegado
+        expect(compiled.contexts.length).toBe(2);
+        expect(compiled.bindings.length).toBe(1);
+        expect(compiled.bindings[0].index).toBe(1);
+        expect(compiled.foldedIndices).toEqual([0]);
+        const generated = genFactoryCode("_f", compiled);
+        expect(generated.code).not.toContain('BindAttr(root,"class"');
+    });
+
+    it("literal en posición texto se hornea escapado", () => {
+        const compiled = compileTemplate(
+            ["<p>", " <b>", "</b></p>"],
+            ["static", "signal"],
+            ["<script>&", undefined],
+        );
+        expect(compiled.optimizedHtml).toContain("&lt;script&gt;&amp;");
+        expect(compiled.foldedIndices).toEqual([0]);
+    });
+
+    it("no pliega directivas/url/eventos ni valores no-string", () => {
+        const compiled = compileTemplate(
+            ['<div ref="', '" href="', '" @click="', '">', "</div>"],
+            ["static", "static", "static", "static"],
+            ["x", "http://a", "f", true],
+        );
+        expect(compiled.foldedIndices).toBeUndefined();
+        expect(compiled.optimizedHtml).not.toContain('ref="x"');
+        expect(compiled.bindings.length).toBe(4);
+    });
+
+    it("no pliega texto dentro de tags estructurales", () => {
+        const compiled = compileTemplate(
+            ["<table><tbody>", "</tbody></table>"],
+            ["static"],
+            ["hola"],
+        );
+        expect(compiled.foldedIndices).toBeUndefined();
     });
 });
